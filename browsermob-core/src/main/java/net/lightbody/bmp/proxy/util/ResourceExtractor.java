@@ -21,12 +21,37 @@ public class ResourceExtractor {
         return extractResourcePath(ResourceExtractor.class, resourcePath, dest);
     }
 
+    public interface URLResolver {
+        /**
+         * @param url the original URL
+         * @return resolved URL or the original one if protocol is unknown
+         */
+        URL resolve(URL url);
+    }
+
+    private static URLResolver urlResolver;
+
+    /**
+     * Gives client an opportunity to resolve its specific protocols (i.e. Eclipse "bundleresource")
+     * @param resolver
+     */
+    public static void setURLResolver(URLResolver resolver) {
+        urlResolver = resolver;
+    }
+
     public static File extractResourcePath(Class cl, String resourcePath, File dest)
             throws IOException {
         boolean alwaysExtract = true;
         URL url = cl.getResource(resourcePath);
         if (url == null) {
             throw new IllegalArgumentException("Resource not found: " + resourcePath);
+        }
+        if (urlResolver != null) {
+            URL resolved = urlResolver.resolve(url);
+            if (resolved == null) {
+                throw new RuntimeException(url + " resolved to null");
+            }
+            url = resolved;
         }
         if ("jar".equalsIgnoreCase(url.getProtocol())) {
             File jarFile = getJarFileFromUrl(url);
